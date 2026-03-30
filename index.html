@@ -109,7 +109,6 @@
         const defaultData = {
           personal: {
             name: "Sila GUNGOR, PhD",
-            title: "Team Lead, Blade Manufacturing Development",
             photo: "https://media.licdn.com/dms/image/v2/D4D03AQHDr0_OlMpxCw/profile-displayphoto-shrink_800_800/B4DZacV6C0GsAc-/0/1746379711543?e=1776297600&v=beta&t=QW3IBhXVTn91On7hpcQdAdc-V8HBWaptObqyEb25XEQ",
             summary: "Results-driven Materials Scientist and Engineering Leader with over 15 years of experience in composite materials, nanotechnology, and manufacturing development. Proven track record of spearheading R&D projects, developing novel nanocomposites, and leading cross-functional teams in high-tech industries including wind energy and aerospace. Adept at bridging the gap between advanced material science research and scalable industrial manufacturing."
           },
@@ -204,18 +203,6 @@
               grade: "GPA: 3.27/4.00",
               details: ""
             }
-          ],
-          publications: [
-            {
-              title: "The effect of CNT-reinforced polyurethane foam cores to flexural properties of sandwich composites",
-              journal: "Composites Part A",
-              date: "2018"
-            },
-            {
-              title: "Damage detection via electrical impedance tomography in glass fiber/epoxy laminates with carbon black filler",
-              journal: "Structural Health Monitoring",
-              date: "2015"
-            }
           ]
         };
 
@@ -251,7 +238,7 @@
           const [isPrintPending, setIsPrintPending] = useState(false);
 
           useEffect(() => {
-            const savedData = localStorage.getItem('cvDataV2');
+            const savedData = localStorage.getItem('cvDataV3');
             if (savedData) {
               try {
                 setData(JSON.parse(savedData));
@@ -262,7 +249,7 @@
           }, []);
 
           useEffect(() => {
-            localStorage.setItem('cvDataV2', JSON.stringify(data));
+            localStorage.setItem('cvDataV3', JSON.stringify(data));
           }, [data]);
 
           const handlePrint = () => {
@@ -281,7 +268,7 @@
           const resetData = () => {
             if(window.confirm("Tüm değişiklikler silinip orijinal CV verisine dönülecek. Emin misin?")) {
               setData(defaultData);
-              localStorage.removeItem('cvDataV2');
+              localStorage.removeItem('cvDataV3');
             }
           };
           
@@ -317,14 +304,6 @@
             setData(prev => {
               const newData = JSON.parse(JSON.stringify(prev));
               newData.education[index][field] = value;
-              return newData;
-            });
-          };
-
-          const updatePub = (index, field, value) => {
-            setData(prev => {
-              const newData = JSON.parse(JSON.stringify(prev));
-              newData.publications[index][field] = value;
               return newData;
             });
           };
@@ -412,11 +391,11 @@
               <div id="cv-content" className="w-[210mm] min-h-[297mm] bg-white print:m-0 print:shadow-none shadow-2xl relative overflow-hidden flex flex-row mt-8 text-slate-800">
                 
                 {/* --- LEFT COLUMN --- */}
-                <div className="w-[35%] flex flex-col z-20 relative bg-[#e6e8eb]">
+                <div className="w-[28%] flex flex-col z-20 relative bg-[#e6e8eb]">
                   {/* Top White Area for Photo Alignment */}
                   <div className="h-[200px] bg-white relative flex justify-center items-end pb-4">
                      {/* Photo */}
-                     <div className="absolute bottom-[-60px] w-[180px] h-[180px] rounded-full border-[8px] border-[#e6e8eb] overflow-hidden group bg-white shadow-sm z-30">
+                     <div className="absolute bottom-[-60px] w-[160px] h-[160px] rounded-full border-[6px] border-[#e6e8eb] overflow-hidden group bg-white shadow-sm z-30">
                         <img 
                           src={data.personal.photo} 
                           alt={data.personal.name} 
@@ -438,18 +417,18 @@
                   </div>
 
                   {/* Left Column Content */}
-                  <div className="flex-1 px-8 pt-[80px] pb-12 flex flex-col gap-10">
+                  <div className="flex-1 px-6 pt-[80px] pb-12 flex flex-col gap-10">
                       
                       {/* SKILLS */}
                       <div className="print-break-inside-avoid">
-                          <h3 className="text-[15px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-2 mb-6">
+                          <h3 className="text-[14px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-2 mb-6">
                             Competencies
                           </h3>
                           <ul className="space-y-2.5">
                             {data.skills.map((skill, index) => (
                               <li key={index} className="flex items-start group">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] mr-3 mt-2 flex-shrink-0"></span>
-                                <div className="text-[13px] font-semibold text-slate-700 leading-tight">
+                                <div className="text-[12.5px] font-semibold text-slate-700 leading-tight">
                                   <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
                                 </div>
                                 {isEditing && (
@@ -469,22 +448,22 @@
 
                       {/* EDUCATION */}
                       <div className="print-break-inside-avoid">
-                          <h3 className="text-[15px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-2 mb-6">
+                          <h3 className="text-[14px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-2 mb-6">
                             Education
                           </h3>
                           <div className="space-y-6">
                             {data.education.map((edu, index) => (
                               <div key={index} className="group">
-                                <div className="text-[11px] font-bold text-slate-500 mb-0.5">
+                                <div className="text-[10px] font-bold text-slate-500 mb-0.5">
                                   <EditableField value={edu.period} onChange={(v) => updateEdu(index, 'period', v)} isEditing={isEditing} />
                                 </div>
-                                <div className="text-[13px] font-bold text-slate-800 leading-tight mb-1">
+                                <div className="text-[12.5px] font-bold text-slate-800 leading-tight mb-1">
                                   <EditableField value={edu.degree} onChange={(v) => updateEdu(index, 'degree', v)} isEditing={isEditing} multiline={isEditing} />
                                 </div>
-                                <div className="text-[12px] text-slate-600 mb-0.5 leading-snug">
+                                <div className="text-[11px] text-slate-600 mb-0.5 leading-snug">
                                   <EditableField value={edu.school} onChange={(v) => updateEdu(index, 'school', v)} isEditing={isEditing} />
                                 </div>
-                                <div className="text-[11px] font-bold text-slate-500">
+                                <div className="text-[10px] font-bold text-slate-500">
                                   <EditableField value={edu.grade} onChange={(v) => updateEdu(index, 'grade', v)} isEditing={isEditing} />
                                 </div>
                               </div>
@@ -496,16 +475,13 @@
                 </div>
 
                 {/* --- RIGHT COLUMN --- */}
-                <div className="w-[65%] flex flex-col z-10 bg-white">
+                <div className="w-[72%] flex flex-col z-10 bg-white">
                   
                   {/* Top Header */}
                   <div className="h-[200px] bg-[#3b4256] flex flex-col justify-center pl-[35px] pr-10">
-                     <h1 className="text-[38px] font-black text-white uppercase tracking-widest leading-none mb-3">
+                     <h1 className="text-[40px] font-black text-white uppercase tracking-widest leading-none">
                        <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black" : ""} />
                      </h1>
-                     <h2 className="text-[16px] font-normal text-white/90 uppercase tracking-[0.2em]">
-                       <EditableField value={data.personal.title} onChange={(v) => updatePersonal('title', v)} isEditing={isEditing} className={isEditing ? "!text-black" : ""} />
-                     </h2>
                   </div>
 
                   {/* Main Content Area */}
@@ -578,37 +554,6 @@
                                        )}
                                     </div>
                                  ))}
-                              </div>
-                            ))}
-                         </div>
-                      </div>
-
-                      {/* PUBLICATIONS */}
-                      <div className="relative pb-4 mt-4 print-break-inside-avoid">
-                         <div className="absolute left-[ -65.5px] top-[-4px] w-10 h-10 rounded-full bg-[#3b4256] flex items-center justify-center text-white z-10 border-4 border-white shadow-sm" style={{ left: '-65.5px' }}>
-                            <Icon name="BookOpen" size={18} />
-                         </div>
-                         <h3 className="text-[20px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-6 mt-0">
-                            Publications
-                         </h3>
-
-                         <div className="space-y-5">
-                            {data.publications.map((pub, index) => (
-                              <div key={index} className="relative group">
-                                 {/* Timeline dot */}
-                                 <div className="absolute w-[12px] h-[12px] rounded-full bg-white border-[2.5px] border-[#a0aabf] z-10" style={{ left: '-50.5px', top: '4px' }}></div>
-                                 
-                                 <h4 className="text-[13px] font-semibold text-slate-800 leading-snug text-justify mb-1">
-                                    <EditableField value={pub.title} onChange={(v) => updatePub(index, 'title', v)} isEditing={isEditing} multiline={isEditing} />
-                                 </h4>
-                                 <div className="flex justify-between items-baseline gap-2">
-                                    <span className="text-[12px] italic text-slate-600 flex-1">
-                                       <EditableField value={pub.journal} onChange={(v) => updatePub(index, 'journal', v)} isEditing={isEditing} />
-                                    </span>
-                                    <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
-                                       <EditableField value={pub.date} onChange={(v) => updatePub(index, 'date', v)} isEditing={isEditing} />
-                                    </span>
-                                 </div>
                               </div>
                             ))}
                          </div>
