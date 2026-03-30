@@ -40,11 +40,14 @@
                 size: A4;
                 margin: 0; 
             }
-            body { 
+            html, body { 
                 -webkit-print-color-adjust: exact !important; 
                 print-color-adjust: exact !important; 
                 background-color: white !important;
-                margin: 0;
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                overflow: visible !important;
             }
             
             .print-break-inside-avoid { 
@@ -59,13 +62,20 @@
                 display: none !important;
             }
             
+            #root {
+                overflow: visible !important;
+                height: auto !important;
+            }
+            
             #cv-content {
                 width: 210mm !important;
-                height: 297mm !important; 
+                height: auto !important; 
                 min-height: 297mm !important;
                 box-shadow: none !important;
                 margin: 0 !important;
                 border: none !important;
+                overflow: visible !important;
+                page-break-after: auto;
             }
         }
         
@@ -85,7 +95,7 @@
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 transition-colors duration-300 flex flex-col items-center min-h-screen">
-    <div id="root" class="w-full max-w-full overflow-x-auto pb-10 print:pb-0"></div>
+    <div id="root" class="w-full max-w-full overflow-x-auto pb-10 print:pb-0 print:overflow-visible"></div>
 
     <!-- React App Logic -->
     <script type="text/babel">
@@ -210,6 +220,19 @@
           ]
         };
 
+        const getCompanyPeriod = (roles) => {
+            if (!roles || roles.length === 0) return "";
+            if (roles.length === 1) return roles[0].period || "";
+            
+            const firstRoleParts = (roles[0].period || "").split('-');
+            const lastRoleParts = (roles[roles.length - 1].period || "").split('-');
+            
+            const latest = firstRoleParts.length > 1 ? firstRoleParts[1].trim() : "Present";
+            const oldest = lastRoleParts[0].trim();
+            
+            return `${oldest} - ${latest}`;
+        };
+
         // --- COMPONENTS ---
         const EditableField = ({ value, onChange, isEditing, multiline, className = "", placeholder }) => {
           if (!isEditing) {
@@ -242,18 +265,22 @@
           const [isPrintPending, setIsPrintPending] = useState(false);
 
           useEffect(() => {
-            const savedData = localStorage.getItem('cvDataV4');
-            if (savedData) {
-              try {
+            try {
+              const savedData = localStorage.getItem('cvDataV4');
+              if (savedData) {
                 setData(JSON.parse(savedData));
-              } catch (e) {
-                console.error("Local storage error:", e);
               }
+            } catch (e) {
+              console.error("Local storage error:", e);
             }
           }, []);
 
           useEffect(() => {
-            localStorage.setItem('cvDataV4', JSON.stringify(data));
+            try {
+              localStorage.setItem('cvDataV4', JSON.stringify(data));
+            } catch (e) {
+              console.error("Local storage write error:", e);
+            }
           }, [data]);
 
           const handlePrint = () => {
@@ -391,28 +418,28 @@
                 </button>
               </div>
 
-              {/* Main CV Container - Fixed to A4 Width */}
-              <div id="cv-content" className="w-[210mm] min-h-[297mm] bg-white print:m-0 print:shadow-none shadow-2xl relative overflow-hidden flex flex-row mt-8 text-slate-800">
+              {/* Main CV Container */}
+              <div id="cv-content" className="w-[210mm] min-h-[297mm] h-auto bg-white print:m-0 print:shadow-none shadow-2xl relative overflow-hidden print:overflow-visible flex flex-row mt-8 text-slate-800">
                 
                 {/* --- LEFT COLUMN --- */}
                 <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact">
                   
                   {/* Top Dark Area for Photo Alignment (Merges with right side seamlessly) */}
-                  <div className="min-h-[200px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
+                  <div className="min-h-[100px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
                      {/* Photo */}
-                     <div className="absolute bottom-[-75px] w-[150px] h-[150px] rounded-full border-[6px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-md z-30">
+                     <div className="absolute bottom-[-50px] w-[110px] h-[110px] rounded-full border-[5px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-md z-30">
                         <img 
                           src={data.personal.photo} 
                           alt={data.personal.name} 
                           className="w-full h-full object-cover"
                         />
                         {isEditing && (
-                          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-3 text-center">
-                            <Icon name="ImageIcon" className="text-white mb-1" size={20} />
-                            <span className="text-white text-[10px] font-medium mb-1">Fotoğraf URL:</span>
+                          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-center">
+                            <Icon name="ImageIcon" className="text-white mb-1" size={16} />
+                            <span className="text-white text-[9px] font-medium mb-1">Fotoğraf URL:</span>
                             <input 
                               type="text" 
-                              className="w-full text-xs p-1 rounded text-black border-none focus:ring-2 focus:ring-blue-500" 
+                              className="w-full text-[10px] p-1 rounded text-black border-none focus:ring-2 focus:ring-blue-500" 
                               value={data.personal.photo} 
                               onChange={e => updatePersonal('photo', e.target.value)} 
                             />
@@ -422,7 +449,7 @@
                   </div>
 
                   {/* Left Column Content */}
-                  <div className="flex-1 px-6 pt-[100px] pb-12 flex flex-col gap-10">
+                  <div className="flex-1 px-6 pt-[70px] pb-12 flex flex-col gap-10">
                       
                       {/* SKILLS */}
                       <div className="print-break-inside-avoid">
@@ -483,17 +510,17 @@
                 <div className="w-[70%] flex flex-col z-10 bg-white">
                   
                   {/* Top Header - Merges visually with the left column's dark background */}
-                  <div className="min-h-[200px] w-full bg-[#3b4256] print-exact flex flex-col justify-center pl-[45px] pr-10 shrink-0">
-                     <h1 className="text-[40px] font-black text-white uppercase tracking-widest leading-tight m-0">
+                  <div className="min-h-[100px] w-full bg-[#3b4256] print-exact flex flex-col justify-center pl-[45px] pr-10 shrink-0">
+                     <h1 className="text-[32px] font-black text-white uppercase tracking-widest leading-tight m-0">
                        <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black !font-bold" : ""} />
                      </h1>
                   </div>
 
                   {/* Main Content Area */}
-                  <div className="flex-1 relative pl-[100px] pr-12 py-14">
+                  <div className="flex-1 relative pl-[100px] pr-12 py-10">
                       
                       {/* Central Timeline Continuous Line */}
-                      <div className="absolute left-[54.5px] top-[72px] bottom-[100px] w-[2px] bg-[#a0aabf] print-exact"></div>
+                      <div className="absolute left-[54.5px] top-[56px] bottom-[100px] w-[2px] bg-[#a0aabf] print-exact"></div>
 
                       {/* PROFILE */}
                       <div className="relative pb-10 print-break-inside-avoid">
@@ -528,14 +555,25 @@
                                        <EditableField value={exp.company} onChange={(v) => updateExp(expIndex, 'company', v)} isEditing={isEditing} />
                                     </h4>
                                     <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap ml-2">
-                                       <EditableField value={exp.roles[0]?.period || ''} onChange={(v) => updateRole(expIndex, 0, 'period', v)} isEditing={isEditing} />
+                                       {!isEditing ? (
+                                           <span>{getCompanyPeriod(exp.roles)}</span>
+                                       ) : (
+                                           <span className="italic opacity-50 text-[10px]">(Rol tarihlerinden hesaplanır)</span>
+                                       )}
                                     </span>
                                  </div>
 
                                  {exp.roles.map((role, roleIndex) => (
                                     <div key={roleIndex} className="mb-4 last:mb-0">
-                                       <div className="text-[13px] font-semibold text-slate-700 mb-2">
-                                          <EditableField value={role.title} onChange={(v) => updateRole(expIndex, roleIndex, 'title', v)} isEditing={isEditing} />
+                                       <div className="flex justify-between items-baseline mb-2">
+                                           <div className="text-[13px] font-semibold text-slate-700">
+                                              <EditableField value={role.title} onChange={(v) => updateRole(expIndex, roleIndex, 'title', v)} isEditing={isEditing} />
+                                           </div>
+                                           {isEditing && (
+                                              <div className="text-[11px] font-medium text-slate-500 whitespace-nowrap ml-2">
+                                                  <EditableField value={role.period} onChange={(v) => updateRole(expIndex, roleIndex, 'period', v)} isEditing={isEditing} />
+                                              </div>
+                                           )}
                                        </div>
                                        <ul className="space-y-1.5">
                                           {role.description.map((item, descIndex) => (
