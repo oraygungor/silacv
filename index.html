@@ -29,10 +29,16 @@
 
     <!-- Print Specific CSS -->
     <style>
+        .print-exact {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+
         @media print {
             @page {
                 size: A4;
-                margin: 0; /* Remove default margins to allow full bleed if supported */
+                margin: 0; 
             }
             body { 
                 -webkit-print-color-adjust: exact !important; 
@@ -49,22 +55,20 @@
                 display: none !important;
             }
             
-            /* Hide print button area on actual print */
             #controls-bar {
                 display: none !important;
             }
             
-            /* Force exact sizing for A4 print */
             #cv-content {
                 width: 210mm !important;
-                height: 297mm !important; /* Fixed to exactly 1 page height if fits, or lets it flow */
+                height: 297mm !important; 
                 min-height: 297mm !important;
                 box-shadow: none !important;
                 margin: 0 !important;
+                border: none !important;
             }
         }
         
-        /* Webkit scrollbar styles to keep UI clean */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -81,7 +85,7 @@
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 transition-colors duration-300 flex flex-col items-center min-h-screen">
-    <div id="root" class="w-full max-w-full overflow-x-auto pb-10"></div>
+    <div id="root" class="w-full max-w-full overflow-x-auto pb-10 print:pb-0"></div>
 
     <!-- React App Logic -->
     <script type="text/babel">
@@ -209,10 +213,10 @@
         // --- COMPONENTS ---
         const EditableField = ({ value, onChange, isEditing, multiline, className = "", placeholder }) => {
           if (!isEditing) {
-            return <span className={className}>{value || placeholder}</span>;
+            return <span className={`inline-block w-full ${className}`}>{value || placeholder}</span>;
           }
 
-          const baseClasses = `w-full bg-white/90 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 transition-colors print-hidden ${className}`;
+          const baseClasses = `w-full bg-white/90 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 transition-colors print-hidden block ${className}`;
 
           return multiline ? (
             <textarea 
@@ -238,7 +242,7 @@
           const [isPrintPending, setIsPrintPending] = useState(false);
 
           useEffect(() => {
-            const savedData = localStorage.getItem('cvDataV3');
+            const savedData = localStorage.getItem('cvDataV4');
             if (savedData) {
               try {
                 setData(JSON.parse(savedData));
@@ -249,7 +253,7 @@
           }, []);
 
           useEffect(() => {
-            localStorage.setItem('cvDataV3', JSON.stringify(data));
+            localStorage.setItem('cvDataV4', JSON.stringify(data));
           }, [data]);
 
           const handlePrint = () => {
@@ -268,7 +272,7 @@
           const resetData = () => {
             if(window.confirm("Tüm değişiklikler silinip orijinal CV verisine dönülecek. Emin misin?")) {
               setData(defaultData);
-              localStorage.removeItem('cvDataV3');
+              localStorage.removeItem('cvDataV4');
             }
           };
           
@@ -391,11 +395,12 @@
               <div id="cv-content" className="w-[210mm] min-h-[297mm] bg-white print:m-0 print:shadow-none shadow-2xl relative overflow-hidden flex flex-row mt-8 text-slate-800">
                 
                 {/* --- LEFT COLUMN --- */}
-                <div className="w-[28%] flex flex-col z-20 relative bg-[#e6e8eb]">
-                  {/* Top White Area for Photo Alignment */}
-                  <div className="h-[200px] bg-white relative flex justify-center items-end pb-4">
+                <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact">
+                  
+                  {/* Top Dark Area for Photo Alignment (Merges with right side seamlessly) */}
+                  <div className="min-h-[200px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
                      {/* Photo */}
-                     <div className="absolute bottom-[-60px] w-[160px] h-[160px] rounded-full border-[6px] border-[#e6e8eb] overflow-hidden group bg-white shadow-sm z-30">
+                     <div className="absolute bottom-[-75px] w-[150px] h-[150px] rounded-full border-[6px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-md z-30">
                         <img 
                           src={data.personal.photo} 
                           alt={data.personal.name} 
@@ -417,7 +422,7 @@
                   </div>
 
                   {/* Left Column Content */}
-                  <div className="flex-1 px-6 pt-[80px] pb-12 flex flex-col gap-10">
+                  <div className="flex-1 px-6 pt-[100px] pb-12 flex flex-col gap-10">
                       
                       {/* SKILLS */}
                       <div className="print-break-inside-avoid">
@@ -427,7 +432,7 @@
                           <ul className="space-y-2.5">
                             {data.skills.map((skill, index) => (
                               <li key={index} className="flex items-start group">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] mr-3 mt-2 flex-shrink-0"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] print-exact mr-3 mt-2 flex-shrink-0"></span>
                                 <div className="text-[12.5px] font-semibold text-slate-700 leading-tight">
                                   <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
                                 </div>
@@ -475,12 +480,12 @@
                 </div>
 
                 {/* --- RIGHT COLUMN --- */}
-                <div className="w-[72%] flex flex-col z-10 bg-white">
+                <div className="w-[70%] flex flex-col z-10 bg-white">
                   
-                  {/* Top Header */}
-                  <div className="h-[200px] bg-[#3b4256] flex flex-col justify-center pl-[35px] pr-10">
-                     <h1 className="text-[40px] font-black text-white uppercase tracking-widest leading-none">
-                       <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black" : ""} />
+                  {/* Top Header - Merges visually with the left column's dark background */}
+                  <div className="min-h-[200px] w-full bg-[#3b4256] print-exact flex flex-col justify-center pl-[45px] pr-10 shrink-0">
+                     <h1 className="text-[40px] font-black text-white uppercase tracking-widest leading-tight m-0">
+                       <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black !font-bold" : ""} />
                      </h1>
                   </div>
 
@@ -488,11 +493,11 @@
                   <div className="flex-1 relative pl-[100px] pr-12 py-14">
                       
                       {/* Central Timeline Continuous Line */}
-                      <div className="absolute left-[54.5px] top-[76px] bottom-[100px] w-[2px] bg-[#a0aabf]"></div>
+                      <div className="absolute left-[54.5px] top-[72px] bottom-[100px] w-[2px] bg-[#a0aabf] print-exact"></div>
 
                       {/* PROFILE */}
                       <div className="relative pb-10 print-break-inside-avoid">
-                         <div className="absolute left-[ -65.5px] top-[-4px] w-10 h-10 rounded-full bg-[#3b4256] flex items-center justify-center text-white z-10 border-4 border-white shadow-sm" style={{ left: '-65.5px' }}>
+                         <div className="absolute w-10 h-10 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-4 border-white shadow-sm" style={{ left: '-65.5px', top: '-4px' }}>
                             <Icon name="User" size={18} />
                          </div>
                          <h3 className="text-[20px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-4 mt-0">
@@ -505,7 +510,7 @@
 
                       {/* WORK EXPERIENCE */}
                       <div className="relative pb-6">
-                         <div className="absolute left-[ -65.5px] top-[-4px] w-10 h-10 rounded-full bg-[#3b4256] flex items-center justify-center text-white z-10 border-4 border-white shadow-sm" style={{ left: '-65.5px' }}>
+                         <div className="absolute w-10 h-10 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-4 border-white shadow-sm" style={{ left: '-65.5px', top: '-4px' }}>
                             <Icon name="Briefcase" size={18} />
                          </div>
                          <h3 className="text-[20px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-8 mt-0">
@@ -516,7 +521,7 @@
                             {data.experience.map((exp, expIndex) => (
                               <div key={expIndex} className="relative print-break-inside-avoid">
                                  {/* Timeline dot */}
-                                 <div className="absolute w-[12px] h-[12px] rounded-full bg-white border-[2.5px] border-[#a0aabf] z-10" style={{ left: '-50.5px', top: '5px' }}></div>
+                                 <div className="absolute w-[12px] h-[12px] rounded-full bg-white print-exact border-[2.5px] border-[#a0aabf] z-10" style={{ left: '-50.5px', top: '5px' }}></div>
                                  
                                  <div className="flex justify-between items-baseline mb-2">
                                     <h4 className="text-[15px] font-extrabold text-[#3b4256]">
@@ -535,7 +540,7 @@
                                        <ul className="space-y-1.5">
                                           {role.description.map((item, descIndex) => (
                                              <li key={descIndex} className="flex items-start text-[12px] text-slate-600 leading-relaxed group">
-                                                <span className="mr-2.5 mt-2 w-1 h-1 rounded-full bg-slate-400 flex-shrink-0"></span>
+                                                <span className="mr-2.5 mt-2 w-1 h-1 rounded-full bg-slate-400 print-exact flex-shrink-0"></span>
                                                 <div className="flex-1 text-justify">
                                                    <EditableField value={item} onChange={(v) => updateRoleDesc(expIndex, roleIndex, descIndex, v)} isEditing={isEditing} multiline={isEditing} />
                                                 </div>
