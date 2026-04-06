@@ -99,7 +99,7 @@
 
     <!-- React App Logic -->
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // --- ICONS ---
         const Icon = ({ name, size = 18, className = "" }) => {
@@ -109,6 +109,7 @@
                 case 'BookOpen': return <svg {...attrs}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
                 case 'Briefcase': return <svg {...attrs}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
                 case 'Download': return <svg {...attrs}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
+                case 'Upload': return <svg {...attrs}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
                 case 'Edit2': return <svg {...attrs}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>;
                 case 'Save': return <svg {...attrs}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
                 case 'RotateCcw': return <svg {...attrs}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
@@ -263,6 +264,9 @@
           const [isEditing, setIsEditing] = useState(false);
           const [data, setData] = useState(defaultData);
           const [isPrintPending, setIsPrintPending] = useState(false);
+          const [printScale, setPrintScale] = useState(1);
+          
+          const fileInputRef = useRef(null);
 
           useEffect(() => {
             try {
@@ -284,16 +288,32 @@
           }, [data]);
 
           const handlePrint = () => {
-            if (isEditing) {
-              setIsEditing(false);
-              setIsPrintPending(true);
+            // Düzenleme modundan çık ki gerçek boyutları (span) ölçebilelim
+            if (isEditing) setIsEditing(false);
+            setIsPrintPending(true); // Gösterge başlasın
+
+            // DOM'un güncellenmesi için (düzenleme modundan okuma moduna) bekle
+            setTimeout(() => {
+              const wrapper = document.getElementById('print-wrapper');
+              let scaleToSet = 1;
+              if (wrapper) {
+                const targetHeight = 1115; // A4'ün px cinsinden yaklaşık yüksekliği (güvenlik payı ile)
+                const currentHeight = wrapper.scrollHeight;
+                
+                // Eğer içerik sayfa boyutunu aşıyorsa otomatik scale et
+                if (currentHeight > targetHeight) {
+                  scaleToSet = targetHeight / (currentHeight + 20); // Biraz daha güvenlik payı ekle
+                }
+              }
+              setPrintScale(scaleToSet);
+
+              // Scale uygulandıktan sonra layout'un tam oturması için az daha bekle ve yazdır
               setTimeout(() => {
                 window.print();
                 setIsPrintPending(false);
-              }, 600); 
-            } else {
-              window.print();
-            }
+                setPrintScale(1); // Yazdırdıktan sonra normale dön
+              }, 300);
+            }, 300);
           };
 
           const resetData = () => {
@@ -301,6 +321,33 @@
               setData(defaultData);
               localStorage.removeItem('cvDataV5');
             }
+          };
+
+          const handleExport = () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "cv-data-yedek.json");
+            document.body.appendChild(downloadAnchorNode); // Firefox requires the link to be in the body
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+          };
+
+          const handleImport = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const importedData = JSON.parse(e.target.result);
+                setData(importedData);
+                alert("CV verileri başarıyla yüklendi!");
+              } catch (err) {
+                alert("Geçersiz veya bozuk JSON dosyası!");
+              }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input to allow uploading the same file again if needed
           };
           
           const updatePersonal = (field, value) => {
@@ -461,13 +508,37 @@
                 </button>
 
                 {isEditing && (
-                  <button 
-                    onClick={resetData}
-                    className="flex items-center gap-2 px-3 py-2 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-medium transition-colors border border-red-200 text-sm"
-                    title="Orijinal Verilere Dön"
-                  >
-                    <Icon name="RotateCcw" size={16} /> <span>Sıfırla</span>
-                  </button>
+                  <>
+                    <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
+                    
+                    {/* JSON Import/Export */}
+                    <button 
+                      onClick={handleExport}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium transition-colors border border-blue-200 text-sm"
+                      title="Verileri Yedekle (JSON)"
+                    >
+                      <Icon name="Download" size={16} /> <span className="hidden sm:inline">Dışa Aktar</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => fileInputRef.current.click()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium transition-colors border border-blue-200 text-sm"
+                      title="Yedekten Veri Yükle (JSON)"
+                    >
+                      <Icon name="Upload" size={16} /> <span className="hidden sm:inline">İçe Aktar</span>
+                    </button>
+                    <input type="file" accept=".json" ref={fileInputRef} onChange={handleImport} className="hidden" />
+
+                    <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
+
+                    <button 
+                      onClick={resetData}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-medium transition-colors border border-red-200 text-sm"
+                      title="Orijinal Verilere Dön"
+                    >
+                      <Icon name="RotateCcw" size={16} /> <span className="hidden sm:inline">Sıfırla</span>
+                    </button>
+                  </>
                 )}
 
                 <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
@@ -487,229 +558,234 @@
               {/* Main CV Container */}
               <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-row mt-6 text-slate-800 ${isEditing ? 'min-h-[297mm] h-auto overflow-visible pb-12' : 'h-[297mm] overflow-hidden'}`}>
                 
-                {/* --- LEFT COLUMN --- */}
-                <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact">
-                  
-                  {/* Top Dark Area for Photo Alignment */}
-                  <div className="h-[65px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
-                     {/* Photo */}
-                     <div className="absolute bottom-[-40px] w-[84px] h-[84px] rounded-full border-[4px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-sm z-30">
-                        <img 
-                          src={data.personal.photo} 
-                          alt={data.personal.name} 
-                          className="w-full h-full object-cover"
-                        />
-                        {isEditing && (
-                          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-center">
-                            <Icon name="ImageIcon" className="text-white mb-1" size={12} />
-                            <input 
-                              type="text" 
-                              className="w-full text-[8px] p-1 rounded text-black border-none focus:ring-2 focus:ring-blue-500" 
-                              value={data.personal.photo} 
-                              onChange={e => updatePersonal('photo', e.target.value)} 
-                            />
-                          </div>
-                        )}
-                     </div>
-                  </div>
+                {/* Print Wrapper - Used for scaling down if content overflows */}
+                <div 
+                    id="print-wrapper" 
+                    className="w-full h-full flex flex-row origin-top-left"
+                    style={printScale !== 1 ? { transform: `scale(${printScale})`, width: `${100 / printScale}%`, height: `${100 / printScale}%` } : {}}
+                >
+                  {/* --- LEFT COLUMN --- */}
+                  <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact min-h-full">
+                    
+                    {/* Top Dark Area for Photo Alignment */}
+                    <div className="h-[65px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
+                      {/* Photo */}
+                      <div className="absolute bottom-[-40px] w-[84px] h-[84px] rounded-full border-[4px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-sm z-30">
+                          <img 
+                            src={data.personal.photo} 
+                            alt={data.personal.name} 
+                            className="w-full h-full object-cover"
+                          />
+                          {isEditing && (
+                            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-center">
+                              <Icon name="ImageIcon" className="text-white mb-1" size={12} />
+                              <input 
+                                type="text" 
+                                className="w-full text-[8px] p-1 rounded text-black border-none focus:ring-2 focus:ring-blue-500" 
+                                value={data.personal.photo} 
+                                onChange={e => updatePersonal('photo', e.target.value)} 
+                              />
+                            </div>
+                          )}
+                      </div>
+                    </div>
 
-                  {/* Left Column Content */}
-                  <div className="flex-1 px-5 pt-[45px] pb-4 flex flex-col gap-5">
-                     
-                     {/* SKILLS */}
-                     <div className="print-break-inside-avoid">
-                         <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
-                           Competencies
-                         </h3>
-                         <ul className="space-y-1.5">
-                           {data.skills.map((skill, index) => (
-                             <li key={index} className="flex items-start group">
-                               <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] print-exact mr-2 mt-1.5 flex-shrink-0"></span>
-                               <div className="text-[11px] font-semibold text-slate-700 leading-tight">
-                                 <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
-                               </div>
-                               {isEditing && (
-                                 <button onClick={() => removeSkill(index)} className="ml-auto text-red-500 hover:text-red-700 opacity-50 hover:opacity-100 print:hidden pl-2">
-                                   <Icon name="Trash2" size={10} />
-                                 </button>
-                               )}
-                             </li>
-                           ))}
-                         </ul>
-                         {isEditing && (
-                           <button onClick={addSkill} className="mt-2 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
-                             <Icon name="Plus" size={10} /> Yetenek Ekle
-                           </button>
-                         )}
-                     </div>
-
-                     {/* EDUCATION */}
-                     <div className="print-break-inside-avoid">
-                         <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
-                           Education
-                         </h3>
-                         <div className="space-y-3">
-                           {data.education.map((edu, index) => (
-                             <div key={index} className="group relative">
-                               {isEditing && (
-                                 <button onClick={() => removeEducation(index)} className="absolute -left-5 top-0 text-red-400 hover:text-red-600 print-hidden" title="Eğitimi Sil">
-                                   <Icon name="Trash2" size={10} />
-                                 </button>
-                               )}
-                               <div className="text-[9px] font-bold text-slate-500 mb-0.5">
-                                 <EditableField value={edu.period} onChange={(v) => updateEdu(index, 'period', v)} isEditing={isEditing} />
-                               </div>
-                               <div className="text-[11px] font-bold text-slate-800 leading-tight mb-0.5">
-                                 <EditableField value={edu.degree} onChange={(v) => updateEdu(index, 'degree', v)} isEditing={isEditing} multiline={isEditing} />
-                               </div>
-                               <div className="text-[10px] text-slate-600 leading-snug">
-                                 <EditableField value={edu.school} onChange={(v) => updateEdu(index, 'school', v)} isEditing={isEditing} />
-                               </div>
-                             </div>
-                           ))}
-                         </div>
-                         {isEditing && (
-                           <button onClick={addEducation} className="mt-3 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
-                             <Icon name="Plus" size={10} /> Eğitim Ekle
-                           </button>
-                         )}
-                     </div>
-
-                  </div>
-                </div>
-
-                {/* --- RIGHT COLUMN --- */}
-                <div className="w-[70%] flex flex-col z-10 bg-white">
-                  
-                  {/* Top Header */}
-                  <div className="h-[65px] w-full bg-[#3b4256] print-exact flex flex-col justify-center pl-[35px] pr-6 shrink-0">
-                     <h1 className="text-[26px] font-black text-white uppercase tracking-widest leading-none m-0">
-                       <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black !font-bold" : ""} />
-                     </h1>
-                  </div>
-
-                  {/* Main Content Area */}
-                  <div className={`flex-1 relative pl-[70px] pr-8 py-6 ${isEditing ? 'overflow-visible' : 'overflow-hidden'}`}>
-                     
-                     {/* Central Timeline Continuous Line */}
-                     <div className="absolute left-[35px] top-[38px] bottom-[30px] w-[2px] bg-[#a0aabf] print-exact"></div>
-
-                     {/* PROFILE */}
-                     <div className="relative pb-5 print-break-inside-avoid">
-                         <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
-                            <Icon name="User" size={14} />
-                         </div>
-                         <h3 className="text-[16px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-2 mt-0">
-                            Profile
-                         </h3>
-                         <div className="text-[11px] text-slate-600 leading-snug text-justify">
-                            <EditableField value={data.personal.summary} onChange={(v) => updatePersonal('summary', v)} isEditing={isEditing} multiline />
-                         </div>
+                    {/* Left Column Content */}
+                    <div className="flex-1 px-5 pt-[45px] pb-4 flex flex-col gap-5">
+                      
+                      {/* SKILLS */}
+                      <div className="print-break-inside-avoid">
+                          <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
+                            Competencies
+                          </h3>
+                          <ul className="space-y-1.5">
+                            {data.skills.map((skill, index) => (
+                              <li key={index} className="flex items-start group">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] print-exact mr-2 mt-1.5 flex-shrink-0"></span>
+                                <div className="text-[11px] font-semibold text-slate-700 leading-tight">
+                                  <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
+                                </div>
+                                {isEditing && (
+                                  <button onClick={() => removeSkill(index)} className="ml-auto text-red-500 hover:text-red-700 opacity-50 hover:opacity-100 print:hidden pl-2">
+                                    <Icon name="Trash2" size={10} />
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                          {isEditing && (
+                            <button onClick={addSkill} className="mt-2 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
+                              <Icon name="Plus" size={10} /> Yetenek Ekle
+                            </button>
+                          )}
                       </div>
 
-                     {/* WORK EXPERIENCE */}
-                     <div className="relative pb-3">
-                         <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
-                            <Icon name="Briefcase" size={14} />
-                         </div>
-                         <h3 className="text-[16px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-4 mt-0">
-                            Work Experience
-                         </h3>
-
-                         <div className="space-y-4">
-                            {data.experience.map((exp, expIndex) => (
-                              <div key={expIndex} className="relative print-break-inside-avoid">
-                                 {/* Timeline dot */}
-                                 <div className="absolute w-[8px] h-[8px] rounded-full bg-white print-exact border-[2px] border-[#a0aabf] z-10" style={{ left: '-39px', top: '6px' }}></div>
-                                 
-                                 <div className="flex justify-between items-baseline mb-2">
-                                    <div className="flex flex-col">
-                                        <h4 className="text-[13px] font-extrabold text-[#3b4256] flex items-center gap-2">
-                                           <EditableField value={exp.company} onChange={(v) => updateExp(expIndex, 'company', v)} isEditing={isEditing} />
-                                           {isEditing && (
-                                               <button onClick={() => removeExperience(expIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Şirketi Sil">
-                                                  <Icon name="Trash2" size={12} />
-                                               </button>
-                                           )}
-                                        </h4>
-                                        
-                                        {/* YENİ EKLENEN OPSİYONEL ŞİRKET NOTU KISMI */}
-                                        {(isEditing || exp.note) && (
-                                           <div className="text-[10px] font-medium text-slate-500 italic mt-0.5">
-                                               <EditableField 
-                                                  value={exp.note || ""} 
-                                                  placeholder="Şirket hakkında kısa not (opsiyonel)" 
-                                                  onChange={(v) => updateExp(expIndex, 'note', v)} 
-                                                  isEditing={isEditing} 
-                                               />
-                                           </div>
-                                        )}
-                                    </div>
-
-                                    <span className="text-[9.5px] font-bold text-slate-500 whitespace-nowrap ml-2">
-                                       {!isEditing ? (
-                                           <span>{getCompanyPeriod(exp.roles)}</span>
-                                       ) : (
-                                           <span className="italic opacity-50 text-[8.5px]">(Tarihlerden hesaplanır)</span>
-                                       )}
-                                    </span>
-                                 </div>
-
-                                 {exp.roles.map((role, roleIndex) => (
-                                    <div key={roleIndex} className="mb-2 last:mb-0">
-                                       <div className="flex justify-between items-baseline mb-1">
-                                           <div className="text-[11.5px] font-semibold text-slate-700 flex items-center gap-2">
-                                              <EditableField value={role.title} onChange={(v) => updateRole(expIndex, roleIndex, 'title', v)} isEditing={isEditing} />
-                                              {isEditing && (
-                                                  <button onClick={() => removeRole(expIndex, roleIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Pozisyonu Sil">
-                                                     <Icon name="Trash2" size={10} />
-                                                  </button>
-                                              )}
-                                           </div>
-                                           <div className="text-[9.5px] font-medium text-slate-500 whitespace-nowrap ml-2">
-                                              <EditableField value={role.period} onChange={(v) => updateRole(expIndex, roleIndex, 'period', v)} isEditing={isEditing} />
-                                           </div>
-                                       </div>
-                                       <ul className="space-y-1">
-                                          {role.description.map((item, descIndex) => (
-                                             <li key={descIndex} className="flex items-start text-[11px] text-slate-600 leading-snug group">
-                                                <span className="mr-2 mt-1.5 w-1 h-1 rounded-full bg-slate-400 print-exact flex-shrink-0"></span>
-                                                <div className="flex-1 text-justify">
-                                                   <EditableField value={item} onChange={(v) => updateRoleDesc(expIndex, roleIndex, descIndex, v)} isEditing={isEditing} multiline={isEditing} />
-                                                </div>
-                                                {isEditing && (
-                                                   <button onClick={() => removeRoleDesc(expIndex, roleIndex, descIndex)} className="ml-2 text-red-400 hover:text-red-600 opacity-50 hover:opacity-100 flex-shrink-0 print:hidden mt-0.5">
-                                                      <Icon name="Trash2" size={10} />
-                                                   </button>
-                                                )}
-                                             </li>
-                                          ))}
-                                       </ul>
-                                       {isEditing && (
-                                          <button onClick={() => addRoleDesc(expIndex, roleIndex)} className="mt-1 px-2 py-1 border border-dashed border-slate-300 text-slate-400 rounded flex items-center gap-1 hover:bg-slate-50 text-[9px] transition-colors print:hidden">
-                                             <Icon name="Plus" size={8} /> Sorumluluk Ekle
-                                          </button>
-                                       )}
-                                    </div>
-                                 ))}
-                                 {isEditing && (
-                                    <button onClick={() => addRole(expIndex)} className="mt-2 mb-2 px-2 py-1.5 border border-dashed border-blue-300 text-blue-500 rounded flex items-center gap-1 hover:bg-blue-50 text-[9.5px] font-semibold transition-colors print:hidden w-max">
-                                       <Icon name="Plus" size={10} /> Yeni Pozisyon Ekle
-                                    </button>
-                                 )}
+                      {/* EDUCATION */}
+                      <div className="print-break-inside-avoid">
+                          <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
+                            Education
+                          </h3>
+                          <div className="space-y-3">
+                            {data.education.map((edu, index) => (
+                              <div key={index} className="group relative">
+                                {isEditing && (
+                                  <button onClick={() => removeEducation(index)} className="absolute -left-5 top-0 text-red-400 hover:text-red-600 print-hidden" title="Eğitimi Sil">
+                                    <Icon name="Trash2" size={10} />
+                                  </button>
+                                )}
+                                <div className="text-[9px] font-bold text-slate-500 mb-0.5">
+                                  <EditableField value={edu.period} onChange={(v) => updateEdu(index, 'period', v)} isEditing={isEditing} />
+                                </div>
+                                <div className="text-[11px] font-bold text-slate-800 leading-tight mb-0.5">
+                                  <EditableField value={edu.degree} onChange={(v) => updateEdu(index, 'degree', v)} isEditing={isEditing} multiline={isEditing} />
+                                </div>
+                                <div className="text-[10px] text-slate-600 leading-snug">
+                                  <EditableField value={edu.school} onChange={(v) => updateEdu(index, 'school', v)} isEditing={isEditing} />
+                                </div>
                               </div>
                             ))}
-                         </div>
-                         {isEditing && (
-                            <button onClick={addExperience} className="mt-6 px-3 py-2 border-2 border-dashed border-[#3b4256] text-[#3b4256] rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 text-[11px] font-bold uppercase tracking-wider transition-colors print:hidden w-full">
-                               <Icon name="Plus" size={14} /> Yeni Şirket (İş Deneyimi) Ekle
+                          </div>
+                          {isEditing && (
+                            <button onClick={addEducation} className="mt-3 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
+                              <Icon name="Plus" size={10} /> Eğitim Ekle
                             </button>
-                         )}
+                          )}
                       </div>
 
+                    </div>
+                  </div>
+
+                  {/* --- RIGHT COLUMN --- */}
+                  <div className="w-[70%] flex flex-col z-10 bg-white">
+                    
+                    {/* Top Header */}
+                    <div className="h-[65px] w-full bg-[#3b4256] print-exact flex flex-col justify-center pl-[35px] pr-6 shrink-0">
+                      <h1 className="text-[26px] font-black text-white uppercase tracking-widest leading-none m-0">
+                        <EditableField value={data.personal.name} onChange={(v) => updatePersonal('name', v)} isEditing={isEditing} className={isEditing ? "!text-black !font-bold" : ""} />
+                      </h1>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className={`flex-1 relative pl-[70px] pr-8 py-6 ${isEditing ? 'overflow-visible' : 'overflow-hidden'}`}>
+                      
+                      {/* Central Timeline Continuous Line */}
+                      <div className="absolute left-[35px] top-[38px] bottom-[30px] w-[2px] bg-[#a0aabf] print-exact"></div>
+
+                      {/* PROFILE */}
+                      <div className="relative pb-5 print-break-inside-avoid">
+                          <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
+                              <Icon name="User" size={14} />
+                          </div>
+                          <h3 className="text-[16px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-2 mt-0">
+                              Profile
+                          </h3>
+                          <div className="text-[11px] text-slate-600 leading-snug text-justify">
+                              <EditableField value={data.personal.summary} onChange={(v) => updatePersonal('summary', v)} isEditing={isEditing} multiline />
+                          </div>
+                        </div>
+
+                      {/* WORK EXPERIENCE */}
+                      <div className="relative pb-3">
+                          <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
+                              <Icon name="Briefcase" size={14} />
+                          </div>
+                          <h3 className="text-[16px] font-bold uppercase tracking-[0.2em] text-[#3b4256] mb-4 mt-0">
+                              Work Experience
+                          </h3>
+
+                          <div className="space-y-4">
+                              {data.experience.map((exp, expIndex) => (
+                                <div key={expIndex} className="relative print-break-inside-avoid">
+                                  {/* Timeline dot */}
+                                  <div className="absolute w-[8px] h-[8px] rounded-full bg-white print-exact border-[2px] border-[#a0aabf] z-10" style={{ left: '-39px', top: '6px' }}></div>
+                                  
+                                  <div className="flex flex-col mb-2">
+                                      <div className="flex justify-between items-baseline">
+                                          <h4 className="text-[13px] font-extrabold text-[#3b4256] flex items-center gap-2">
+                                            <EditableField value={exp.company} onChange={(v) => updateExp(expIndex, 'company', v)} isEditing={isEditing} />
+                                            {isEditing && (
+                                                <button onClick={() => removeExperience(expIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Şirketi Sil">
+                                                    <Icon name="Trash2" size={12} />
+                                                </button>
+                                            )}
+                                          </h4>
+                                          <span className="text-[9.5px] font-bold text-slate-500 whitespace-nowrap ml-2">
+                                            {!isEditing ? (
+                                                <span>{getCompanyPeriod(exp.roles)}</span>
+                                            ) : (
+                                                <span className="italic opacity-50 text-[8.5px]">(Tarihlerden hesaplanır)</span>
+                                            )}
+                                          </span>
+                                      </div>
+                                      
+                                      {/* TAM GENİŞLİK ALAN ŞİRKET NOTU */}
+                                      {(isEditing || exp.note) && (
+                                          <div className="text-[10px] font-medium text-slate-500 italic mt-0.5 w-full">
+                                              <EditableField 
+                                                  value={exp.note || ""} 
+                                                  placeholder="Şirket hakkında kısa not (opsiyonel, tam satır)" 
+                                                  onChange={(v) => updateExp(expIndex, 'note', v)} 
+                                                  isEditing={isEditing} 
+                                              />
+                                          </div>
+                                      )}
+                                  </div>
+
+                                  {exp.roles.map((role, roleIndex) => (
+                                      <div key={roleIndex} className="mb-2 last:mb-0">
+                                        <div className="flex justify-between items-baseline mb-1">
+                                            <div className="text-[11.5px] font-semibold text-slate-700 flex items-center gap-2">
+                                                <EditableField value={role.title} onChange={(v) => updateRole(expIndex, roleIndex, 'title', v)} isEditing={isEditing} />
+                                                {isEditing && (
+                                                    <button onClick={() => removeRole(expIndex, roleIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Pozisyonu Sil">
+                                                      <Icon name="Trash2" size={10} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="text-[9.5px] font-medium text-slate-500 whitespace-nowrap ml-2">
+                                                <EditableField value={role.period} onChange={(v) => updateRole(expIndex, roleIndex, 'period', v)} isEditing={isEditing} />
+                                            </div>
+                                        </div>
+                                        <ul className="space-y-1">
+                                            {role.description.map((item, descIndex) => (
+                                              <li key={descIndex} className="flex items-start text-[11px] text-slate-600 leading-snug group">
+                                                  <span className="mr-2 mt-1.5 w-1 h-1 rounded-full bg-slate-400 print-exact flex-shrink-0"></span>
+                                                  <div className="flex-1 text-justify">
+                                                    <EditableField value={item} onChange={(v) => updateRoleDesc(expIndex, roleIndex, descIndex, v)} isEditing={isEditing} multiline={isEditing} />
+                                                  </div>
+                                                  {isEditing && (
+                                                    <button onClick={() => removeRoleDesc(expIndex, roleIndex, descIndex)} className="ml-2 text-red-400 hover:text-red-600 opacity-50 hover:opacity-100 flex-shrink-0 print:hidden mt-0.5">
+                                                        <Icon name="Trash2" size={10} />
+                                                    </button>
+                                                  )}
+                                              </li>
+                                            ))}
+                                        </ul>
+                                        {isEditing && (
+                                            <button onClick={() => addRoleDesc(expIndex, roleIndex)} className="mt-1 px-2 py-1 border border-dashed border-slate-300 text-slate-400 rounded flex items-center gap-1 hover:bg-slate-50 text-[9px] transition-colors print:hidden">
+                                              <Icon name="Plus" size={8} /> Sorumluluk Ekle
+                                            </button>
+                                        )}
+                                      </div>
+                                  ))}
+                                  {isEditing && (
+                                      <button onClick={() => addRole(expIndex)} className="mt-2 mb-2 px-2 py-1.5 border border-dashed border-blue-300 text-blue-500 rounded flex items-center gap-1 hover:bg-blue-50 text-[9.5px] font-semibold transition-colors print:hidden w-max">
+                                        <Icon name="Plus" size={10} /> Yeni Pozisyon Ekle
+                                      </button>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                          {isEditing && (
+                              <button onClick={addExperience} className="mt-6 px-3 py-2 border-2 border-dashed border-[#3b4256] text-[#3b4256] rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 text-[11px] font-bold uppercase tracking-wider transition-colors print:hidden w-full">
+                                <Icon name="Plus" size={14} /> Yeni Şirket (İş Deneyimi) Ekle
+                              </button>
+                          )}
+                        </div>
+
+                    </div>
                   </div>
                 </div>
-
               </div>
             </div>
           );
