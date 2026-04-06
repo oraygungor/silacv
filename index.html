@@ -139,6 +139,7 @@
           experience: [
             {
               company: "Siemens Gamesa",
+              note: "Global leader in offshore wind power.",
               location: "Aalborg, Denmark",
               roles: [
                 {
@@ -162,6 +163,7 @@
             },
             {
               company: "Roketsan Missiles Inc.",
+              note: "",
               location: "Ankara / Bursa, Türkiye",
               roles: [
                 {
@@ -183,6 +185,7 @@
             },
             {
               company: "The Pennsylvania State University",
+              note: "",
               location: "State College, PA, USA",
               roles: [
                 {
@@ -381,6 +384,7 @@
               const newData = JSON.parse(JSON.stringify(prev));
               newData.experience.push({
                 company: "Yeni Şirket",
+                note: "",
                 location: "Şehir, Ülke",
                 roles: [{
                   title: "Yeni Pozisyon",
@@ -480,7 +484,7 @@
                 </button>
               </div>
 
-              {/* Main CV Container - Dynamically expand in edit mode to prevent cut-offs */}
+              {/* Main CV Container */}
               <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-row mt-6 text-slate-800 ${isEditing ? 'min-h-[297mm] h-auto overflow-visible pb-12' : 'h-[297mm] overflow-hidden'}`}>
                 
                 {/* --- LEFT COLUMN --- */}
@@ -511,65 +515,65 @@
 
                   {/* Left Column Content */}
                   <div className="flex-1 px-5 pt-[45px] pb-4 flex flex-col gap-5">
-                      
-                      {/* SKILLS */}
-                      <div className="print-break-inside-avoid">
-                          <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
-                            Competencies
-                          </h3>
-                          <ul className="space-y-1.5">
-                            {data.skills.map((skill, index) => (
-                              <li key={index} className="flex items-start group">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] print-exact mr-2 mt-1.5 flex-shrink-0"></span>
-                                <div className="text-[11px] font-semibold text-slate-700 leading-tight">
-                                  <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
-                                </div>
-                                {isEditing && (
-                                  <button onClick={() => removeSkill(index)} className="ml-auto text-red-500 hover:text-red-700 opacity-50 hover:opacity-100 print:hidden pl-2">
-                                    <Icon name="Trash2" size={10} />
-                                  </button>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                          {isEditing && (
-                            <button onClick={addSkill} className="mt-2 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
-                              <Icon name="Plus" size={10} /> Yetenek Ekle
-                            </button>
-                          )}
-                      </div>
+                     
+                     {/* SKILLS */}
+                     <div className="print-break-inside-avoid">
+                         <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
+                           Competencies
+                         </h3>
+                         <ul className="space-y-1.5">
+                           {data.skills.map((skill, index) => (
+                             <li key={index} className="flex items-start group">
+                               <span className="w-1.5 h-1.5 rounded-full bg-[#3b4256] print-exact mr-2 mt-1.5 flex-shrink-0"></span>
+                               <div className="text-[11px] font-semibold text-slate-700 leading-tight">
+                                 <EditableField value={skill} onChange={(v) => updateSkill(index, v)} isEditing={isEditing} />
+                               </div>
+                               {isEditing && (
+                                 <button onClick={() => removeSkill(index)} className="ml-auto text-red-500 hover:text-red-700 opacity-50 hover:opacity-100 print:hidden pl-2">
+                                   <Icon name="Trash2" size={10} />
+                                 </button>
+                               )}
+                             </li>
+                           ))}
+                         </ul>
+                         {isEditing && (
+                           <button onClick={addSkill} className="mt-2 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
+                             <Icon name="Plus" size={10} /> Yetenek Ekle
+                           </button>
+                         )}
+                     </div>
 
-                      {/* EDUCATION */}
-                      <div className="print-break-inside-avoid">
-                          <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
-                            Education
-                          </h3>
-                          <div className="space-y-3">
-                            {data.education.map((edu, index) => (
-                              <div key={index} className="group relative">
-                                {isEditing && (
-                                  <button onClick={() => removeEducation(index)} className="absolute -left-5 top-0 text-red-400 hover:text-red-600 print-hidden" title="Eğitimi Sil">
-                                    <Icon name="Trash2" size={10} />
-                                  </button>
-                                )}
-                                <div className="text-[9px] font-bold text-slate-500 mb-0.5">
-                                  <EditableField value={edu.period} onChange={(v) => updateEdu(index, 'period', v)} isEditing={isEditing} />
-                                </div>
-                                <div className="text-[11px] font-bold text-slate-800 leading-tight mb-0.5">
-                                  <EditableField value={edu.degree} onChange={(v) => updateEdu(index, 'degree', v)} isEditing={isEditing} multiline={isEditing} />
-                                </div>
-                                <div className="text-[10px] text-slate-600 leading-snug">
-                                  <EditableField value={edu.school} onChange={(v) => updateEdu(index, 'school', v)} isEditing={isEditing} />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {isEditing && (
-                            <button onClick={addEducation} className="mt-3 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
-                              <Icon name="Plus" size={10} /> Eğitim Ekle
-                            </button>
-                          )}
-                      </div>
+                     {/* EDUCATION */}
+                     <div className="print-break-inside-avoid">
+                         <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#3b4256] border-b-[2px] border-slate-300 pb-1.5 mb-3">
+                           Education
+                         </h3>
+                         <div className="space-y-3">
+                           {data.education.map((edu, index) => (
+                             <div key={index} className="group relative">
+                               {isEditing && (
+                                 <button onClick={() => removeEducation(index)} className="absolute -left-5 top-0 text-red-400 hover:text-red-600 print-hidden" title="Eğitimi Sil">
+                                   <Icon name="Trash2" size={10} />
+                                 </button>
+                               )}
+                               <div className="text-[9px] font-bold text-slate-500 mb-0.5">
+                                 <EditableField value={edu.period} onChange={(v) => updateEdu(index, 'period', v)} isEditing={isEditing} />
+                               </div>
+                               <div className="text-[11px] font-bold text-slate-800 leading-tight mb-0.5">
+                                 <EditableField value={edu.degree} onChange={(v) => updateEdu(index, 'degree', v)} isEditing={isEditing} multiline={isEditing} />
+                               </div>
+                               <div className="text-[10px] text-slate-600 leading-snug">
+                                 <EditableField value={edu.school} onChange={(v) => updateEdu(index, 'school', v)} isEditing={isEditing} />
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                         {isEditing && (
+                           <button onClick={addEducation} className="mt-3 px-2 py-1 border border-dashed border-slate-400 text-slate-600 rounded flex items-center gap-1 hover:bg-slate-200 text-[9px] w-full justify-center transition-colors print:hidden">
+                             <Icon name="Plus" size={10} /> Eğitim Ekle
+                           </button>
+                         )}
+                     </div>
 
                   </div>
                 </div>
@@ -586,12 +590,12 @@
 
                   {/* Main Content Area */}
                   <div className={`flex-1 relative pl-[70px] pr-8 py-6 ${isEditing ? 'overflow-visible' : 'overflow-hidden'}`}>
-                      
-                      {/* Central Timeline Continuous Line */}
-                      <div className="absolute left-[35px] top-[38px] bottom-[30px] w-[2px] bg-[#a0aabf] print-exact"></div>
+                     
+                     {/* Central Timeline Continuous Line */}
+                     <div className="absolute left-[35px] top-[38px] bottom-[30px] w-[2px] bg-[#a0aabf] print-exact"></div>
 
-                      {/* PROFILE */}
-                      <div className="relative pb-5 print-break-inside-avoid">
+                     {/* PROFILE */}
+                     <div className="relative pb-5 print-break-inside-avoid">
                          <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
                             <Icon name="User" size={14} />
                          </div>
@@ -603,8 +607,8 @@
                          </div>
                       </div>
 
-                      {/* WORK EXPERIENCE */}
-                      <div className="relative pb-3">
+                     {/* WORK EXPERIENCE */}
+                     <div className="relative pb-3">
                          <div className="absolute w-8 h-8 rounded-full bg-[#3b4256] print-exact flex items-center justify-center text-white z-10 border-[3px] border-white shadow-sm" style={{ left: '-51px', top: '-2px' }}>
                             <Icon name="Briefcase" size={14} />
                          </div>
@@ -619,14 +623,29 @@
                                  <div className="absolute w-[8px] h-[8px] rounded-full bg-white print-exact border-[2px] border-[#a0aabf] z-10" style={{ left: '-39px', top: '6px' }}></div>
                                  
                                  <div className="flex justify-between items-baseline mb-2">
-                                    <h4 className="text-[13px] font-extrabold text-[#3b4256] flex items-center gap-2">
-                                       <EditableField value={exp.company} onChange={(v) => updateExp(expIndex, 'company', v)} isEditing={isEditing} />
-                                       {isEditing && (
-                                           <button onClick={() => removeExperience(expIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Şirketi Sil">
-                                              <Icon name="Trash2" size={12} />
-                                           </button>
-                                       )}
-                                    </h4>
+                                    <div className="flex flex-col">
+                                        <h4 className="text-[13px] font-extrabold text-[#3b4256] flex items-center gap-2">
+                                           <EditableField value={exp.company} onChange={(v) => updateExp(expIndex, 'company', v)} isEditing={isEditing} />
+                                           {isEditing && (
+                                               <button onClick={() => removeExperience(expIndex)} className="text-red-400 hover:text-red-600 print-hidden shrink-0" title="Şirketi Sil">
+                                                  <Icon name="Trash2" size={12} />
+                                               </button>
+                                           )}
+                                        </h4>
+                                        
+                                        {/* YENİ EKLENEN OPSİYONEL ŞİRKET NOTU KISMI */}
+                                        {(isEditing || exp.note) && (
+                                           <div className="text-[10px] font-medium text-slate-500 italic mt-0.5">
+                                               <EditableField 
+                                                  value={exp.note || ""} 
+                                                  placeholder="Şirket hakkında kısa not (opsiyonel)" 
+                                                  onChange={(v) => updateExp(expIndex, 'note', v)} 
+                                                  isEditing={isEditing} 
+                                               />
+                                           </div>
+                                        )}
+                                    </div>
+
                                     <span className="text-[9.5px] font-bold text-slate-500 whitespace-nowrap ml-2">
                                        {!isEditing ? (
                                            <span>{getCompanyPeriod(exp.roles)}</span>
