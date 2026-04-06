@@ -566,18 +566,18 @@
                 </button>
               </div>
 
-              {/* ANA ÇERÇEVE DÜZELTİLDİ: Sadece yazdırılma (print) işlemi sırasında aktif olarak 297mm olur, normalde görünür kalır */}
-              <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-row mt-6 text-slate-800 ${(isPrintPending && !isMeasuring) ? 'h-[297mm] overflow-hidden' : 'min-h-[297mm] h-auto pb-12'}`}>
+              {/* ANA ÇERÇEVE: flex ve items-start eklendi ki wrapper container boyutlarını serbestçe aşabilsin */}
+              <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-col items-start text-slate-800 ${(isPrintPending && !isMeasuring) ? 'h-[297mm] overflow-hidden' : 'min-h-[297mm] h-auto pb-12 mt-6'}`}>
                 
-                {/* Print Wrapper - This handles the dynamic scaling perfectly while keeping layout integrity */}
+                {/* Print Wrapper - Reflow yapısı (Dinamik genişlik) kullanılarak sağ boşluk yok edildi */}
                 <div 
                     id="print-wrapper" 
-                    className="w-full flex flex-row min-h-full origin-top-left"
+                    className="flex flex-row flex-1 origin-top-left"
                     style={(printScale !== 1 && isPrintPending && !isMeasuring) ? { 
                         transform: `scale(${printScale})`,
                         width: `${100 / printScale}%`,
-                        height: `${100 / printScale}%`
-                    } : {}}
+                        minHeight: `${100 / printScale}%`
+                    } : { width: '100%', minHeight: '100%' }}
                 >
                   {/* --- LEFT COLUMN --- */}
                   <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact min-h-full">
