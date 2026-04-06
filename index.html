@@ -264,6 +264,7 @@
           const [isEditing, setIsEditing] = useState(false);
           const [data, setData] = useState(defaultData);
           const [isPrintPending, setIsPrintPending] = useState(false);
+          const [isMeasuring, setIsMeasuring] = useState(false);
           const [printScale, setPrintScale] = useState(1);
           
           const fileInputRef = useRef(null);
@@ -288,33 +289,44 @@
           }, [data]);
 
           const handlePrint = () => {
-            // Düzenleme modundan çık ki gerçek boyutları (span) ölçebilelim
             if (isEditing) setIsEditing(false);
-            setIsPrintPending(true); // Gösterge başlasın
+            setIsPrintPending(true);
+            setIsMeasuring(true); // Ölçüm modunu başlat
+          };
 
-            // DOM'un güncellenmesi için (düzenleme modundan okuma moduna) bekle
-            setTimeout(() => {
-              const wrapper = document.getElementById('print-wrapper');
-              let scaleToSet = 1;
-              if (wrapper) {
-                const targetHeight = 1115; // A4'ün px cinsinden yaklaşık yüksekliği (güvenlik payı ile)
-                const currentHeight = wrapper.scrollHeight;
-                
-                // Eğer içerik sayfa boyutunu aşıyorsa otomatik scale et
-                if (currentHeight > targetHeight) {
-                  scaleToSet = targetHeight / (currentHeight + 20); // Biraz daha güvenlik payı ekle
+          // 1inci Aşama: Gerçek yüksekliği ölç ve scale oranını bul
+          useEffect(() => {
+            if (isMeasuring) {
+              const timerId = setTimeout(() => {
+                const wrapper = document.getElementById('print-wrapper');
+                if (wrapper) {
+                  const trueHeight = wrapper.scrollHeight;
+                  const a4Height = 1122; // 297mm'nin piksel karşılığı
+                  
+                  if (trueHeight > a4Height) {
+                    const scale = (a4Height / trueHeight) * 0.99; // Tam sığması için %1 güvenlik payı
+                    setPrintScale(scale);
+                  } else {
+                    setPrintScale(1);
+                  }
                 }
-              }
-              setPrintScale(scaleToSet);
+                setIsMeasuring(false); // Ölçüm bitti
+              }, 150); // DOM'un limitleri kaldırmasını bekle
+              return () => clearTimeout(timerId);
+            }
+          }, [isMeasuring]);
 
-              // Scale uygulandıktan sonra layout'un tam oturması için az daha bekle ve yazdır
-              setTimeout(() => {
+          // 2inci Aşama: Scale uygulandıktan sonra sayfayı yazdır
+          useEffect(() => {
+            if (isPrintPending && !isMeasuring) {
+              const timerId = setTimeout(() => {
                 window.print();
                 setIsPrintPending(false);
-                setPrintScale(1); // Yazdırdıktan sonra normale dön
-              }, 300);
-            }, 300);
-          };
+                setPrintScale(1); // Yazdırma bitince sistemi normale döndür
+              }, 300); // Scale transformasyonunun tam oturmasını bekle
+              return () => clearTimeout(timerId);
+            }
+          }, [isPrintPending, isMeasuring]);
 
           const resetData = () => {
             if(window.confirm("Tüm değişiklikler silinip orijinal CV verisine dönülecek. Emin misin?")) {
@@ -328,7 +340,7 @@
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
             downloadAnchorNode.setAttribute("download", "cv-data-yedek.json");
-            document.body.appendChild(downloadAnchorNode); // Firefox requires the link to be in the body
+            document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
           };
@@ -347,7 +359,7 @@
               }
             };
             reader.readAsText(file);
-            event.target.value = ''; // Reset input to allow uploading the same file again if needed
+            event.target.value = ''; 
           };
           
           const updatePersonal = (field, value) => {
@@ -511,7 +523,6 @@
                   <>
                     <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
                     
-                    {/* JSON Import/Export */}
                     <button 
                       onClick={handleExport}
                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium transition-colors border border-blue-200 text-sm"
@@ -555,14 +566,18 @@
                 </button>
               </div>
 
-              {/* Main CV Container */}
-              <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-row mt-6 text-slate-800 ${isEditing ? 'min-h-[297mm] h-auto overflow-visible pb-12' : 'h-[297mm] overflow-hidden'}`}>
+              {/* ANA ÇERÇEVE DÜZELTİLDİ: Sadece yazdırılma (print) işlemi sırasında aktif olarak 297mm olur, normalde görünür kalır */}
+              <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-row mt-6 text-slate-800 ${(isPrintPending && !isMeasuring) ? 'h-[297mm] overflow-hidden' : 'min-h-[297mm] h-auto pb-12'}`}>
                 
-                {/* Print Wrapper - Used for scaling down if content overflows */}
+                {/* Print Wrapper - This handles the dynamic scaling perfectly while keeping layout integrity */}
                 <div 
                     id="print-wrapper" 
-                    className="w-full h-full flex flex-row origin-top-left"
-                    style={printScale !== 1 ? { transform: `scale(${printScale})`, width: `${100 / printScale}%`, height: `${100 / printScale}%` } : {}}
+                    className="w-full flex flex-row min-h-full origin-top-left"
+                    style={(printScale !== 1 && isPrintPending && !isMeasuring) ? { 
+                        transform: `scale(${printScale})`,
+                        width: `${100 / printScale}%`,
+                        height: `${100 / printScale}%`
+                    } : {}}
                 >
                   {/* --- LEFT COLUMN --- */}
                   <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact min-h-full">
@@ -747,7 +762,7 @@
                                             </div>
                                         </div>
                                         <ul className="space-y-1">
-                                            {role.description.map((item, descIndex) => (
+                                            {role.description && role.description.map((item, descIndex) => (
                                               <li key={descIndex} className="flex items-start text-[11px] text-slate-600 leading-snug group">
                                                   <span className="mr-2 mt-1.5 w-1 h-1 rounded-full bg-slate-400 print-exact flex-shrink-0"></span>
                                                   <div className="flex-1 text-justify">
