@@ -234,7 +234,7 @@
             return `${oldest} - ${latest}`;
         };
 
-        // --- COMPONENTS ---
+        // --- EDITABLE FIELD COMPONENT ---
         const EditableField = ({ value, onChange, isEditing, multiline, className = "", placeholder }) => {
           if (!isEditing) {
             return <span className={`inline-block w-full ${className}`}>{value || placeholder}</span>;
@@ -267,7 +267,30 @@
           const [isMeasuring, setIsMeasuring] = useState(false);
           const [printScale, setPrintScale] = useState(1);
           
+          // Custom Modal State
+          const [modal, setModal] = useState({
+            show: false,
+            title: "",
+            message: "",
+            type: "alert", // "alert" or "confirm"
+            onConfirm: null
+          });
+          
           const fileInputRef = useRef(null);
+          const photoInputRef = useRef(null);
+
+          // Modal helper functions
+          const triggerAlert = (title, message) => {
+            setModal({ show: true, title, message, type: "alert", onConfirm: null });
+          };
+
+          const triggerConfirm = (title, message, onConfirmCallback) => {
+            setModal({ show: true, title, message, type: "confirm", onConfirm: onConfirmCallback });
+          };
+
+          const closeModal = () => {
+            setModal(prev => ({ ...prev, show: false }));
+          };
 
           useEffect(() => {
             try {
@@ -291,48 +314,50 @@
           const handlePrint = () => {
             if (isEditing) setIsEditing(false);
             setIsPrintPending(true);
-            setIsMeasuring(true); // Ölçüm modunu başlat
+            setIsMeasuring(true);
           };
 
-          // 1inci Aşama: Gerçek yüksekliği ölç ve scale oranını bul
           useEffect(() => {
             if (isMeasuring) {
               const timerId = setTimeout(() => {
                 const wrapper = document.getElementById('print-wrapper');
                 if (wrapper) {
                   const trueHeight = wrapper.scrollHeight;
-                  const a4Height = 1122; // 297mm'nin piksel karşılığı
+                  const a4Height = 1122; 
                   
                   if (trueHeight > a4Height) {
-                    const scale = (a4Height / trueHeight) * 0.99; // Tam sığması için %1 güvenlik payı
+                    const scale = (a4Height / trueHeight) * 0.99; 
                     setPrintScale(scale);
                   } else {
                     setPrintScale(1);
                   }
                 }
-                setIsMeasuring(false); // Ölçüm bitti
-              }, 150); // DOM'un limitleri kaldırmasını bekle
+                setIsMeasuring(false); 
+              }, 150);
               return () => clearTimeout(timerId);
             }
           }, [isMeasuring]);
 
-          // 2inci Aşama: Scale uygulandıktan sonra sayfayı yazdır
           useEffect(() => {
             if (isPrintPending && !isMeasuring) {
               const timerId = setTimeout(() => {
                 window.print();
                 setIsPrintPending(false);
-                setPrintScale(1); // Yazdırma bitince sistemi normale döndür
-              }, 300); // Scale transformasyonunun tam oturmasını bekle
+                setPrintScale(1); 
+              }, 300); 
               return () => clearTimeout(timerId);
             }
           }, [isPrintPending, isMeasuring]);
 
           const resetData = () => {
-            if(window.confirm("Tüm değişiklikler silinip orijinal CV verisine dönülecek. Emin misin?")) {
-              setData(defaultData);
-              localStorage.removeItem('cvDataV5');
-            }
+            triggerConfirm(
+              "Sıfırlama Onayı",
+              "Tüm değişiklikler silinip orijinal CV verisine dönülecek. Emin misiniz?",
+              () => {
+                setData(defaultData);
+                localStorage.removeItem('cvDataV5');
+              }
+            );
           };
 
           const handleExport = () => {
@@ -353,13 +378,29 @@
               try {
                 const importedData = JSON.parse(e.target.result);
                 setData(importedData);
-                alert("CV verileri başarıyla yüklendi!");
+                triggerAlert("Başarılı", "CV verileri başarıyla yüklendi!");
               } catch (err) {
-                alert("Geçersiz veya bozuk JSON dosyası!");
+                triggerAlert("Hata", "Geçersiz veya bozuk JSON dosyası!");
               }
             };
             reader.readAsText(file);
             event.target.value = ''; 
+          };
+
+          const handlePhotoUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+              triggerAlert("Hata", "Fotoğraf boyutu çok büyük! Lütfen 2MB'tan küçük bir görsel seçin.");
+              return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              updatePersonal('photo', e.target.result);
+            };
+            reader.readAsDataURL(file);
           };
           
           const updatePersonal = (field, value) => {
@@ -506,6 +547,7 @@
 
           return (
             <div className="w-full flex flex-col items-center">
+              
               {/* Controls Header */}
               <div id="controls-bar" className="sticky top-0 z-50 w-full flex flex-wrap justify-center items-center p-3 gap-3 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm transition-colors print:hidden">
                 <button 
@@ -566,10 +608,10 @@
                 </button>
               </div>
 
-              {/* ANA ÇERÇEVE: flex ve items-start eklendi ki wrapper container boyutlarını serbestçe aşabilsin */}
+              {/* ANA ÇERÇEVE */}
               <div id="cv-content" className={`w-[210mm] bg-white print:m-0 print:shadow-none shadow-2xl relative flex flex-col items-start text-slate-800 ${(isPrintPending && !isMeasuring) ? 'h-[297mm] overflow-hidden' : 'min-h-[297mm] h-auto pb-12 mt-6'}`}>
                 
-                {/* Print Wrapper - Reflow yapısı (Dinamik genişlik) kullanılarak sağ boşluk yok edildi */}
+                {/* Print Wrapper */}
                 <div 
                     id="print-wrapper" 
                     className="flex flex-row flex-1 origin-top-left"
@@ -579,34 +621,70 @@
                         minHeight: `${100 / printScale}%`
                     } : { width: '100%', minHeight: '100%' }}
                 >
+                  
                   {/* --- LEFT COLUMN --- */}
                   <div className="w-[30%] flex flex-col z-20 relative bg-[#e6e8eb] print-exact min-h-full">
                     
                     {/* Top Dark Area for Photo Alignment */}
                     <div className="h-[65px] w-full bg-[#3b4256] print-exact relative flex justify-center items-end shrink-0">
-                      {/* Photo */}
-                      <div className="absolute bottom-[-40px] w-[84px] h-[84px] rounded-full border-[4px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-sm z-30">
-                          <img 
-                            src={data.personal.photo} 
-                            alt={data.personal.name} 
-                            className="w-full h-full object-cover"
-                          />
-                          {isEditing && (
-                            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-center">
-                              <Icon name="ImageIcon" className="text-white mb-1" size={12} />
-                              <input 
-                                type="text" 
-                                className="w-full text-[8px] p-1 rounded text-black border-none focus:ring-2 focus:ring-blue-500" 
-                                value={data.personal.photo} 
-                                onChange={e => updatePersonal('photo', e.target.value)} 
-                              />
-                            </div>
-                          )}
-                      </div>
+                      
+                      {/* Optional Photo Container logic */}
+                      {data.personal.photo ? (
+                        <div className="absolute bottom-[-40px] w-[84px] h-[84px] rounded-full border-[4px] border-[#e6e8eb] print-exact overflow-hidden group bg-white shadow-sm z-30 relative">
+                            <img 
+                              src={data.personal.photo} 
+                              alt={data.personal.name} 
+                              className="w-full h-full object-cover"
+                            />
+                            {isEditing && (
+                              <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-1 text-center">
+                                <button 
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); photoInputRef.current.click(); }}
+                                  className="text-white hover:text-blue-300 text-[9px] font-semibold flex items-center gap-1 mb-1.5"
+                                >
+                                  <Icon name="ImageIcon" size={10} /> Değiştir
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); updatePersonal('photo', ''); }}
+                                  className="text-red-400 hover:text-red-500 text-[9px] font-semibold flex items-center gap-1"
+                                >
+                                  <Icon name="Trash2" size={10} /> Kaldır
+                                </button>
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  ref={photoInputRef} 
+                                  onChange={handlePhotoUpload} 
+                                  className="hidden" 
+                                />
+                              </div>
+                            )}
+                        </div>
+                      ) : (
+                        /* If photo is empty, show dashed upload container only during Editing Mode */
+                        isEditing ? (
+                          <div 
+                            onClick={() => photoInputRef.current.click()}
+                            className="absolute bottom-[-40px] w-[84px] h-[84px] rounded-full border-[3px] border-dashed border-slate-400 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all shadow-sm z-30"
+                          >
+                            <Icon name="Plus" className="text-slate-400" size={16} />
+                            <span className="text-[8px] font-semibold text-slate-500 mt-0.5 text-center px-1 leading-tight">Fotoğraf Ekle</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              ref={photoInputRef} 
+                              onChange={handlePhotoUpload} 
+                              className="hidden" 
+                            />
+                          </div>
+                        ) : null
+                      )}
                     </div>
 
-                    {/* Left Column Content */}
-                    <div className="flex-1 px-5 pt-[45px] pb-4 flex flex-col gap-5">
+                    {/* Left Column Content - Dynamic top padding based on photo state */}
+                    <div className={`flex-1 px-5 pb-4 flex flex-col gap-5 ${(data.personal.photo || isEditing) ? 'pt-[45px]' : 'pt-5'}`}>
                       
                       {/* SKILLS */}
                       <div className="print-break-inside-avoid">
@@ -802,6 +880,40 @@
                   </div>
                 </div>
               </div>
+
+              {/* --- CUSTOM MODAL COMPONENT (FOR REPLACING BROWSER ALERTS/CONFIRMS) --- */}
+              {modal.show && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in print:hidden">
+                  <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-slate-200 animate-scale-up">
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{modal.title}</h4>
+                    <p className="text-sm text-slate-600 mb-6">{modal.message}</p>
+                    <div className="flex justify-end gap-3">
+                      {modal.type === "confirm" && (
+                        <button 
+                          onClick={closeModal}
+                          className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                          Vazgeç
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => {
+                          if (modal.onConfirm) {
+                            modal.onConfirm();
+                          }
+                          closeModal();
+                        }}
+                        className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
+                          modal.type === "confirm" ? "bg-red-500 hover:bg-red-600" : "bg-indigo-600 hover:bg-indigo-700"
+                        }`}
+                      >
+                        {modal.type === "confirm" ? "Evet, Onayla" : "Tamam"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           );
         };
